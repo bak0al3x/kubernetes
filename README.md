@@ -233,6 +233,12 @@ cat /etc/group | grep libvirt
 libvirt:x:969:bakoa
 ```
 
+Set the default kvm network to autostart
+
+```bash
+sudo virsh net-autostart default
+```
+
 And then restart the libvirtd service to apply changes:
 
 ```bash
@@ -262,6 +268,14 @@ On ArchLinux, the minikube package is available in the repositories. To install 
 sudo pacman -S minikube
 ```
 
+(Optional) Configure minikube's CPU, RAM and Hypervisor driver settings:
+
+```
+minikube config set cpus 4
+minikube config set memory 4096
+minikube config set driver kvm2
+```
+
 To confirm successful installation of both the hypervisor and Minikube, run the following command to startup a local Kubernetes cluster:
 
 ```bash
@@ -281,3 +295,54 @@ kubeconfig: Configured
 ```
 
 If your output is similar to this, then you've successfully installed a local kubernetes environment on your machine using minikube, enjoy :)
+
+### 2.4. Validate minikube installation
+
+First open the kubernetes dashboard in your browser by executing the following command in your terminal:
+
+```bash
+minikube dashboard
+```
+
+Create a deployment using the `kubectl create` command. This Pod runs a Container based on the provided Docker image.
+
+```bash
+kubectl create deployment hello-node --image=k8s.gcr.io/echoserver:1.4
+deployment.apps/hello-node created
+
+kubectl get deployments
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+hello-node   1/1     1            1           9s
+```
+
+Check the status of the Pod:
+
+```bash
+kubectl get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+hello-node-7567d9fdc9-rpnql   1/1     Running   0          57s
+```
+
+Everything seems fine here, now create a `Service`. By default, the Pod is only accessible by its internal IP address within the Kubernetes cluster. To make the `hello-node` Container accessible from outside the Kubernetes virtual network, you have to expose the Pod as a Kubernetes Service.
+
+To do so, execute the following command in your terminal:
+
+```bash
+kubectl expose deployment hello-node --type=LoadBalancer --port=8080
+service/hello-node exposed
+
+kubectl get svc
+NAME         TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+hello-node   LoadBalancer   10.109.26.234   <pending>     8080:31799/TCP   4s
+kubernetes   ClusterIP      10.96.0.1       <none>        443/TCP          5m42s
+```
+
+The output should look like this. On cloud providers that supports load balancers, an external IP address would be provisioned to access the Service. On minikube, the `LoadBalancer` type makes the Service accessible through the `minikube service` command.
+
+Run the following command:
+
+```bash
+minikube service hello-node
+```
+
+This opens up a browser window that serves your app and shows the app's response.
