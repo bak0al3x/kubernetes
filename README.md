@@ -346,3 +346,209 @@ minikube service hello-node
 ```
 
 This opens up a browser window that serves your app and shows the app's response.
+
+## 3. Setup Ingress on Minikube with NGINX Ingress Controller
+
+### 3.1. Enable the Ingress Controller
+
+On minikube, the `nginx-ingress` controller is not enabled by default. To do so, run the following command:
+
+```bash
+minikube addons enable ingress
+```
+
+Then verify that the NGINX Ingress controller is running:
+
+```bash
+kubectl get pods -n ingress-nginx
+```
+
+### 3.2. Deploy an example app
+
+Create the deployment using the following command:
+
+```bash
+kubectl create deployment web --image=gcr.io/google-samples/hello-app:1.0
+```
+
+Then create a service by exposing the deployment:
+
+```bash
+kubectl expose deployment web --type=NodePort --port=8080
+```
+
+Now visit the service via NodePort:
+
+```bash
+curl $(minikube service web --url)
+Hello, world!
+Version: 1.0.0
+Hostname: web-79d88c97d6-74gcx
+```
+
+## 4. IngressDNS Setup
+
+At this point there is only 1 problem. That is that your ingress controller works basically off of dns and while running minikube that means that your local dns names like myservice.test will have to resolve to `$(minikube ip)` not really a big deal except the only real way to do this is to add an entry for every service in your `/etc/hosts` file.
+
+This gets messy for obvious reasons. If you have a lot of services running that each have their own dns entry then you have to set those up manually. Even if you automate it you then need to rely on the host operating system storing configurations instead of storing them in your cluster.
+
+The Ingress DNS addon acts as a DNS service that runs inside your kubernetes cluster. All you have to do is install the service and add the `$(minikube ip)` as a DNS server on your host machine.
+
+Enable this addon with the following command:
+
+```bash
+minikube addons enable ingress-dns
+```
+
+Now you should add the minikube's IP address as a DNS server. On my setup, I use the `NetworkManager` with the `dnsmasq` plugin, I need to do the following configuration.
+
+First, add the following content to the `/etc/NetworkManager/dnsmasq.q/minikube.cfg` file:
+
+```bash
+server=/test/192.168.39.23
+server=/info/192.168.39.23
+```
+
+This will resolve the `.test` and `.info` domains for us using minikube.
+
+Next, I have to enable the `dnsmasq` in the `NetworkManager` settings. To do so, I've added the following content to the `/etc/NetworkManager/conf.d/dns.conf` file:
+
+```bash
+[main]
+dns=dnsmasq
+```
+
+After that, verify the `dnsmasq` settings with the following command:
+
+```bash
+$ dnsmasq --test --conf-file=/dev/null --conf-dir=/etc/NetworkManager/dnsmasq.d
+dnsmasq: syntax check OK.
+```
+
+And then reload the configuration of the `NetworkManager` by executing the following command:
+
+```bash
+$ sudo nmcli general reload
+```
+
+And finally (just to be on the safe side) reload the NetworkManager service:
+
+```bash
+$ sudo systemctl reload NetworkManager.service
+```
+
+### 4.1. Testing
+
+Create an example ingress:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/minikube/master/deploy/addons/ingress-dns/example/example.yaml
+```
+
+Then test the name resolution, and ensure that the DNS queries are returning A records:
+
+```bash
+$ nslookup hello-jane.test $(minikube ip)
+Server:         192.168.39.23
+Address:        192.168.39.23#53
+
+Non-authoritative answer:
+Name:   hello-jane.test
+Address: 192.168.39.23
+Name:   hello-jane.test
+Address: 192.168.39.23
+
+$ nslookup hello-john.test $(minikube ip)
+Server:         192.168.39.23
+Address:        192.168.39.23#53
+
+Non-authoritative answer:
+Name:   hello-john.test
+Address: 192.168.39.23
+Name:   hello-john.test
+Address: 192.168.39.23
+
+```
+
+Finally, you can curl the example server:
+
+```bash
+$ curl http://hello-john.test
+Hello, world!
+Version: 1.0.0
+Hostname: hello-world-app-7b9bf45d65-qzfc2
+
+$ curl http://hello-jane.test
+Hello, world!
+Version: 1.0.0
+Hostname: hello-world-app-7b9bf45d65-qzfc2
+```
+
+## 5. Helm Setup
+
+Helm is the package manager for kubernetes. To install it, you have to download latest release of the Helm client. On arch linux, Helm is avaialable in the pacman respository:
+
+```bash
+sudo pacman -S helm
+```
+
+Once you have installed Helm, you can add a chart repository.
+
+```bash
+$ helm repo add bitnami https://charts.bitnami.com/bitnami
+"bitnami" has been added to your repositories
+```
+
+Once this is installed, you will be able to list the charts you can install:
+
+```bash
+$ helm search repo bitnami
+NAME                                            CHART VERSION   APP VERSION     DESCRIPTION                                       
+bitnami/bitnami-common                          0.0.9           0.0.9           DEPRECATED Chart with custom templates used in ...
+bitnami/airflow                                 11.1.7          2.2.1           Apache Airflow is a platform to programmaticall...
+bitnami/apache                                  8.9.1           2.4.51          Chart for Apache HTTP Server 
+```
+
+To install an example chart, you can run the `helm install` command. Helm has several ways to find and install a chart, but the easiest is to use the `bitnami` charts.
+
+```bash
+$ helm repo update
+$ helm install bitnami/mysql --generate-name
+NAME: mysql-1612624192
+LAST DEPLOYED: Sat Feb  6 16:09:56 2021
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES: ...
+```
+
+In this example, the `bitnami/mysql` chart was released.
+
+
+```bash
+** Please be patient while the chart is being deployed **
+
+Tip:
+
+  Watch the deployment status using the command: kubectl get pods -w --namespace default
+
+Services:
+
+  echo Primary: mysql-1636282288.default.svc.cluster.local:3306
+
+Execute the following to get the administrator credentials:
+
+  echo Username: root
+  MYSQL_ROOT_PASSWORD=$(kubectl get secret --namespace default mysql-1636282288 -o jsonpath="{.data.mysql-root-password}" | base64 --decode)
+
+To connect to your database:
+
+  1. Run a pod that you can use as a client:
+
+      kubectl run mysql-1636282288-client --rm --tty -i --restart='Never' --image  docker.io/bitnami/mysql:8.0.27-debian-10-r8 --namespace default --command -- bash
+
+  2. To connect to primary service (read/write):
+
+      mysql -h mysql-1636282288.default.svc.cluster.local -uroot -p"$MYSQL_ROOT_PASSWORD"
+```
