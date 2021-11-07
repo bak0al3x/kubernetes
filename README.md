@@ -407,6 +407,7 @@ First, add the following content to the `/etc/NetworkManager/dnsmasq.q/minikube.
 ```bash
 server=/test/192.168.39.23
 server=/info/192.168.39.23
+server=/kube/192.168.39.23
 ```
 
 This will resolve the `.test` and `.info` domains for us using minikube.
