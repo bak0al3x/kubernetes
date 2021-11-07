@@ -218,3 +218,20 @@ spec:
 Visit the following address in your browser: `http://hello-react.kube`
 
 If everything is working fine, you should see your react app in your browser, which is deployed in your minikube environment.
+
+
+### 3.6. Adding helm package
+
+I've created a helm package for the whole deployment process. To install it execute the following command:
+
+```bash
+$ helm upgrade --install hello-react-helm ./helm/react-frontend/
+```
+
+Then verify the deployment via:
+
+```bash
+$ helm list
+NAME                    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
+hello-react-helm        default         1               2021-11-07 21:27:03.145288085 +0100 CET deployed        react-frontend-0.1.0    1.16.0 
+```
