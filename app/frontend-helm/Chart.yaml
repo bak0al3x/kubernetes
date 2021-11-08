@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hello-kube-react
+description: A Helm chart which Deploys an example React application
+type: application
+version: 0.1.0
+appVersion: "0.0.1"

@@ -1,0 +1,10 @@
+replicaCount: 2
+
+name: "hello-react"
+
+image:
+  name: "hello-kube-react"
+  tag: "latest"
+
+ingress:
+  host: "hello-react.kube"
