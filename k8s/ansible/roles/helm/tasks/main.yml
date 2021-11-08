@@ -1,0 +1,22 @@
+---
+  - name: Install Helm
+    community.general.pacman:
+      name: helm
+      state: present
+    become: yes
+    become_method: sudo
+    tags:
+      - minikube
+      - helm
+
+  - name: Add Bitnami helm repository
+    ansible.builtin.shell: helm repo add bitnami https://charts.bitnami.com/bitnami
+    tags:
+      - minikube
+      - helm
+
+  - name: Update Helm repository
+    ansible.builtin.shell: helm repo update
+    tags:
+      - minikube
+      - helm

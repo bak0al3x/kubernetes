@@ -1,0 +1,67 @@
+---
+  - name: Setup KVM Hypervisor
+    block:
+    - name: Check if virtualization is supported
+      ansible.builtin.shell: grep -E --color 'vmx|svm' /proc/cpuinfo | wc -l
+      register: is_vmx_enabled
+
+    - name: Make sure the virtualization is supported
+      fail:
+        msg: "The virtualization is not supported/enabled on your system, can't continue."
+      when: is_vmx_enabled.stdout | int == 0
+
+    - name: Check if virtualization is enabled in your BIOS
+      ansible.builtin.shell: LC_ALL=C lscpu | grep Virtualization | awk -F':' '{print $2;}' | sed 's/\ //g'
+      register: is_virtualization_enabled
+
+    - name: Make sure the virtualization is enabled in the BIOS
+      fail:
+        msg: "The virtualization is not not enabled in your BIOS."
+      when: is_virtualization_enabled.stdout != "VT-x"
+
+    - name: Check if the necessary Kernel modules are enabled
+      ansible.builtin.shell: zgrep CONFIG_KVM_INTEL /proc/config.gz | awk -F'=' '{print $2;}'
+      register: are_kernel_modules_loaded
+
+    - name: Make sure the required Kernel modules are enabled
+      fail:
+        msg: "The required kernel modules are not loaded/enabled, can't continune."
+      when: are_kernel_modules_loaded.stdout != 'm' and are_kernel_modules_loaded.stdout != 'y'
+
+    - name: Install required packages
+      community.general.pacman:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ kvm_packages }}"
+      become: yes
+      become_method: sudo
+
+    - name: Copy libvirtd configuration file
+      ansible.builtin.template:
+        src: templates/libvirtd.conf
+        dest: /etc/libvirt/libvirtd.conf
+      become: yes
+      become_method: sudo
+
+    - name: Add current user to the libvirt group
+      ansible.builtin.user:
+        name: "{{ lookup('env', 'USER') }}"
+        groups: libvirt
+      become: yes
+      become_method: sudo
+
+    - name: Set the 'default' kvm network to autostart
+      ansible.builtin.shell: virsh net-autostart default
+      become: yes
+      become_method: sudo
+
+    - name: Start and enable libvirtd service
+      ansible.builtin.systemd:
+        name: libvirtd
+        state: restarted
+        enabled: yes
+      become: yes
+      become_method: sudo
+    tags:
+      - minikube
+      - kvm

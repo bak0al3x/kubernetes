@@ -1,0 +1,80 @@
+---
+  - name: Minikube base configuration
+    block:
+    - name: Install required packages
+      community.general.pacman:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ minikube_packages }}"
+      become: yes
+      become_method: sudo
+
+    - name: Configure Minikube VM
+      ansible.builtin.shell: "minikube config set {{ item.setting }} {{ item.value }}"
+      with_items: "{{ minikube_configmap }}"
+
+    - name: Cleanup previous VM of Minikube
+      ansible.builtin.shell: minikube delete
+
+    - name: Start Minikube VM
+      ansible.builtin.shell: minikube start
+
+    - name: Retrieve Minikube VM's IP address
+      ansible.builtin.shell: minikube ip
+      register: minikube_ip
+      tags:
+        - minikube-addons
+
+    - name: Print Minikube VM's IP address
+      ansible.builtin.debug:
+        msg: "Minikube VM IP address is {{ minikube_ip.stdout }}"
+
+    - name: Dnsmasq configuration for Minikube's ingress-dns addon
+      ansible.builtin.template:
+        src: templates/dns.conf.j2
+        dest: /etc/NetworkManager/conf.d/dns.conf
+      become: yes
+      become_method: sudo
+
+    - name: Enable dynamic DNS name resolution in NetworkManager for Minikube
+      ansible.builtin.template:
+        src: templates/minikube.cfg.j2
+        dest: /etc/NetworkManager/dnsmasq.d/minikube.cfg
+      become: yes
+      become_method: sudo
+
+    - name: Test dnsmasq configuration
+      ansible.builtin.shell: dnsmasq --test --conf-file=/dev/null --conf-dir=/etc/NetworkManager/dnsmasq.d
+      register: dnsmasq_conf_test
+
+    - name: Fail when configuration is invalid
+      fail:
+        msg: "The provided dnsmasq configuration is invalid: {{ dnsmasq_conf_test.stderr }}"
+      when: '"syntax check OK." not in dnsmasq_conf_test.stderr'
+
+    - name: Reload the configuration of the NetworkManager
+      ansible.builtin.shell: nmcli general reload
+      become: yes
+      become_method: sudo
+
+    - name: Restart the NetworkManager service
+      ansible.builtin.systemd:
+        name: NetworkManager
+        state: restarted
+      become: yes
+      become_method: sudo
+    tags:
+      - never
+      - minikube
+
+  - name: Minikube addon settings
+    block:
+    - name: Enable Minikube Addons
+      ansible.builtin.shell: "minikube addons enable {{ item }}"
+      with_items: "{{ minikube_addons }}"
+
+    - name: Setup Docker registry to work with Minikube
+      ansible.builtin.shell: 'docker run --rm -it -d --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:{{ minikube_ip.stdout }}:5000"'
+    tags:
+    - never
+    - minikube-addons

@@ -1,0 +1,12 @@
+---
+minikube_packages:
+  - kubectl
+  - minikube
+minikube_configmap:
+  - { setting: "cpus", value: "4" }
+  - { setting: "memory", value: "4096" }
+  - { setting: "driver", value: "kvm2" }
+minikube_addons:
+  - ingress
+  - ingress-dns
+  - registry

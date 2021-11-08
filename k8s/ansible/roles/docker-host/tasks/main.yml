@@ -1,0 +1,28 @@
+---
+  - name: Install, setup and configure Docker
+    block:
+    - name: Install Docker
+      community.general.pacman:
+        name: docker
+        state: present
+
+    - name: Create docker group
+      ansible.builtin.group:
+        name: docker
+        state: present
+
+    - name: Add current user to docker's group
+      ansible.builtin.user:
+        name: "{{ lookup('env', 'USER') }}"
+        groups: docker
+
+    - name: Start and enable docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+        enabled: yes
+    become: yes
+    become_method: sudo
+    tags:
+      - docker
+      - minikube

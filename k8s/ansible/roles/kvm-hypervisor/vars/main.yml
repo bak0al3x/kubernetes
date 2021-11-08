@@ -1,0 +1,10 @@
+---
+kvm_packages:
+  - virt-manager
+  - qemu
+  - vde2
+  - ebtables
+  - dnsmasq
+  - bridge-utils
+  - openbsd-netcat
+  - dmidecode

@@ -1,0 +1,7 @@
+---
+  - name: Setup local Kubernetes environment with Minikube
+    hosts: kubernetes
+    roles:
+      - docker-host
+      - minikube
+      - helm
