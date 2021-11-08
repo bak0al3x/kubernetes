@@ -19,3 +19,5 @@ In terms of tech stack, I'd like to use something similar to the following:
 
 - [1. Environment Setup](k8s/README.md)
 - [2. Deploy an example React app to K8s](app/README.md)
+
+- [99. A note on Jenkins X Installation](jenkins/JENKINSX_ERRORS.md)
