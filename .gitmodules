@@ -1,0 +1,3 @@
+[submodule "jx3-minikube"]
+	path = jx3-minikube
+	url = https://github.com/bak0al3x/jx3-minikube.git
