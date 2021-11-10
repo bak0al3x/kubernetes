@@ -17,7 +17,7 @@
       ansible.builtin.shell: minikube delete
 
     - name: Start Minikube VM
-      ansible.builtin.shell: minikube start
+      ansible.builtin.shell: minikube start --addons=ingress,ingress-dns,registry
 
     - name: Retrieve Minikube VM's IP address
       ansible.builtin.shell: minikube ip
